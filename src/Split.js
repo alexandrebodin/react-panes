@@ -39,6 +39,7 @@ const stopDragging = state => ({
 const getBounds = pane => ({
   width: pane.getBoundingClientRect().width,
   left: pane.getBoundingClientRect().left,
+  right: pane.getBoundingClientRect().right,
 })
 
 class Split extends Component {
@@ -90,10 +91,20 @@ class Split extends Component {
 
     if (dragging === true && paneDragging !== null) {
       const currentPaneSize = getBounds(this.panes[paneDragging]);
+
+      if (event.clientX < currentPaneSize.left + 10) return;
+
       const newWdith = event.clientX - currentPaneSize.left - 10;
+
+      const prevPaneIndex = paneDragging - 1;
+      if (this.panes[prevPaneIndex]) {
+        if (event.clientX <= getBounds(this.panes[prevPaneIndex]).right + 30) return;
+      }
 
       const nextPaneIndex = paneDragging + 1;
       if (this.panes[nextPaneIndex]) {
+        if (event.clientX >= getBounds(this.panes[nextPaneIndex]).right - 10) return;
+
         const nextPaneSize =  getBounds(this.panes[nextPaneIndex]);
         const nextPaneWidth = nextPaneSize.width + (currentPaneSize.width - newWdith);
         this.setState(state => {
