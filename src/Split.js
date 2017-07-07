@@ -17,10 +17,12 @@ const separator = {
   flex: '0 0 auto',
   borderLeft: '1px solid rgb(236, 236, 236)',
   borderRight: '1px solid rgb(236, 236, 236)',
+  userSelect: 'text',
 };
 
 const panelStyle = {
   flex: 1,
+  overflow: 'hidden',
   // width: '33.33%'
 };
 
@@ -92,16 +94,21 @@ class Split extends Component {
 
       if (event.clientX < currentPaneSize.left + 10) return;
 
-      const newWdith = (event.clientX - currentPaneSize.left - 10) / this.splitPane.getBoundingClientRect().width * 100;
+      const newWdith =
+        (event.clientX - currentPaneSize.left - 10) /
+        this.splitPane.getBoundingClientRect().width *
+        100;
 
       const prevPaneIndex = paneDragging - 1;
       if (this.panes[prevPaneIndex]) {
-        if (event.clientX <= getBounds(this.panes[prevPaneIndex], this.splitPane).right + 30) return;
+        if (event.clientX <= getBounds(this.panes[prevPaneIndex], this.splitPane).right + 10)
+          return;
       }
 
       const nextPaneIndex = paneDragging + 1;
       if (this.panes[nextPaneIndex]) {
-        if (event.clientX >= getBounds(this.panes[nextPaneIndex], this.splitPane).right - 10) return;
+        if (event.clientX >= getBounds(this.panes[nextPaneIndex], this.splitPane).right - 10)
+          return;
 
         const nextPaneSize = getBounds(this.panes[nextPaneIndex], this.splitPane);
         const nextPaneWidth = nextPaneSize.width + (currentPaneSize.width - newWdith);
