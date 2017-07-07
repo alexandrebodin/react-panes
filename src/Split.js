@@ -27,7 +27,7 @@ const panelStyle = {
 const startDraggingPane = index => state => ({
   ...state,
   dragging: true,
-  paneDragging: index
+  paneDragging: index,
 });
 
 const stopDragging = state => ({
@@ -36,11 +36,13 @@ const stopDragging = state => ({
   paneDragging: null,
 });
 
-const getBounds = pane => ({
-  width: pane.getBoundingClientRect().width,
-  left: pane.getBoundingClientRect().left,
-  right: pane.getBoundingClientRect().right,
-})
+const getBounds = (pane, splitPane) => {
+  return {
+    width: pane.getBoundingClientRect().width / splitPane.getBoundingClientRect().width * 100,
+    left: pane.getBoundingClientRect().left,
+    right: pane.getBoundingClientRect().right,
+  };
+};
 
 class Split extends Component {
   constructor(props) {
@@ -57,22 +59,21 @@ class Split extends Component {
   }
 
   componentDidMount() {
-    document.addEventListener('mousemove', this.onMouseMove)
-    document.addEventListener('mouseup', this.onMouseUp)
-    
+    document.addEventListener('mousemove', this.onMouseMove);
+    document.addEventListener('mouseup', this.onMouseUp);
+
     // save current pane sizes
     this.setState(state => {
       return {
         ...state,
         panes: Object.keys(this.panes).reduce((acc, key) => {
-
           acc[key] = {
-            size: getBounds(this.panes[key]),
+            size: getBounds(this.panes[key], this.splitPane),
           };
           return acc;
         }, {}),
-      }
-    })
+      };
+    });
   }
 
   onMouseDown(event, index) {
@@ -84,44 +85,40 @@ class Split extends Component {
   }
 
   onMouseMove(event) {
-    const {
-      dragging,
-      paneDragging,
-    } = this.state;
+    const { dragging, paneDragging } = this.state;
 
     if (dragging === true && paneDragging !== null) {
-      const currentPaneSize = getBounds(this.panes[paneDragging]);
+      const currentPaneSize = getBounds(this.panes[paneDragging], this.splitPane);
 
       if (event.clientX < currentPaneSize.left + 10) return;
 
-      const newWdith = event.clientX - currentPaneSize.left - 10;
+      const newWdith = (event.clientX - currentPaneSize.left - 10) / this.splitPane.getBoundingClientRect().width * 100;
 
       const prevPaneIndex = paneDragging - 1;
       if (this.panes[prevPaneIndex]) {
-        if (event.clientX <= getBounds(this.panes[prevPaneIndex]).right + 30) return;
+        if (event.clientX <= getBounds(this.panes[prevPaneIndex], this.splitPane).right + 30) return;
       }
 
       const nextPaneIndex = paneDragging + 1;
       if (this.panes[nextPaneIndex]) {
-        if (event.clientX >= getBounds(this.panes[nextPaneIndex]).right - 10) return;
+        if (event.clientX >= getBounds(this.panes[nextPaneIndex], this.splitPane).right - 10) return;
 
-        const nextPaneSize =  getBounds(this.panes[nextPaneIndex]);
+        const nextPaneSize = getBounds(this.panes[nextPaneIndex], this.splitPane);
         const nextPaneWidth = nextPaneSize.width + (currentPaneSize.width - newWdith);
         this.setState(state => {
           state.panes[nextPaneIndex].size = {
             ...nextPaneSize,
-            width: nextPaneWidth
+            width: nextPaneWidth,
           };
 
-        return state;
-      });  
+          return state;
+        });
       }
-      
 
       this.setState(state => {
         state.panes[paneDragging].size = {
           ...currentPaneSize,
-          width: newWdith
+          width: newWdith,
         };
 
         return state;
@@ -130,8 +127,8 @@ class Split extends Component {
   }
 
   componentWillUnmount() {
-    document.removeEventListener('mousemove', this.onMouseMove)
-    document.removeEventListener('mouseup', this.onMouseUp)
+    document.removeEventListener('mousemove', this.onMouseMove);
+    document.removeEventListener('mouseup', this.onMouseUp);
   }
 
   render() {
@@ -144,10 +141,10 @@ class Split extends Component {
         style = {
           ...style,
           flex: 'none',
-          width: pane.size.width,
+          width: `${pane.size.width}%`,
         };
       }
-      
+
       const res = [
         <div ref={pane => (this.panes[index] = pane)} style={style}>
           {child}
@@ -167,7 +164,7 @@ class Split extends Component {
     });
 
     return (
-      <div style={containerStyles}>
+      <div style={containerStyles} ref={ref => (this.splitPane = ref)}>
         {ch}
       </div>
     );
