@@ -6,10 +6,13 @@ const containerStyles = {
   top: 0,
   left: 0,
   width: '100%',
-  height: '100%',
+  height: '100%'
 };
 
 const separator = {
+  position: 'absolute',
+  top: 0,
+  bottom: 0,
   cursor: 'col-resize',
   height: 'auto',
   width: 10,
@@ -17,34 +20,24 @@ const separator = {
   flex: '0 0 auto',
   borderLeft: '1px solid rgb(236, 236, 236)',
   borderRight: '1px solid rgb(236, 236, 236)',
-  userSelect: 'text',
+  userSelect: 'text'
 };
 
 const panelStyle = {
-  flex: 1,
-  overflow: 'hidden',
   // width: '33.33%'
 };
 
 const startDraggingPane = index => state => ({
   ...state,
   dragging: true,
-  paneDragging: index,
+  paneDragging: index
 });
 
 const stopDragging = state => ({
   ...state,
   dragging: false,
-  paneDragging: null,
+  paneDragging: null
 });
-
-const getBounds = (pane, splitPane) => {
-  return {
-    width: pane.getBoundingClientRect().width / splitPane.getBoundingClientRect().width * 100,
-    left: pane.getBoundingClientRect().left,
-    right: pane.getBoundingClientRect().right,
-  };
-};
 
 class Split extends Component {
   constructor(props) {
@@ -52,9 +45,16 @@ class Split extends Component {
     this.state = {
       panes: {},
       dragging: false,
-      paneDragging: null,
+      paneDragging: null
     };
-    this.panes = {};
+
+    for (let i = 0; i < Children.count(props.children); i++) {
+      this.state.panes[i] = {
+        left: 0,
+        width: 0
+      };
+    }
+
     this.onMouseDown = this.onMouseDown.bind(this);
     this.onMouseMove = this.onMouseMove.bind(this);
     this.onMouseUp = this.onMouseUp.bind(this);
@@ -64,22 +64,31 @@ class Split extends Component {
     document.addEventListener('mousemove', this.onMouseMove);
     document.addEventListener('mouseup', this.onMouseUp);
 
+    const { width } = this.splitPane.getBoundingClientRect();
+
+    const childrenCount = Children.count(this.props.children);
+
+    console.log(width, childrenCount);
+
+    const initialPanesWith = (width - 12 * (childrenCount - 1)) / childrenCount;
+
     // save current pane sizes
     this.setState(state => {
       return {
         ...state,
-        panes: Object.keys(this.panes).reduce((acc, key) => {
+        panes: Object.keys(this.state.panes).reduce((acc, key, i) => {
           acc[key] = {
-            size: getBounds(this.panes[key], this.splitPane),
+            width: initialPanesWith,
+            left: initialPanesWith * i + i * 12
           };
           return acc;
-        }, {}),
+        }, {})
       };
     });
   }
 
   onMouseDown(event, index) {
-    this.setState(startDraggingPane(index));
+    this.setState(startDraggingPane(index + 1));
   }
 
   onMouseUp(event) {
@@ -89,46 +98,39 @@ class Split extends Component {
   onMouseMove(event) {
     const { dragging, paneDragging } = this.state;
 
+    const clientX = event.clientX;
+
     if (dragging === true && paneDragging !== null) {
-      const currentPaneSize = getBounds(this.panes[paneDragging], this.splitPane);
-
-      if (event.clientX < currentPaneSize.left + 10) return;
-
-      const newWdith =
-        (event.clientX - currentPaneSize.left - 10) /
-        this.splitPane.getBoundingClientRect().width *
-        100;
-
-      const prevPaneIndex = paneDragging - 1;
-      if (this.panes[prevPaneIndex]) {
-        if (event.clientX <= getBounds(this.panes[prevPaneIndex], this.splitPane).right + 10)
-          return;
-      }
-
-      const nextPaneIndex = paneDragging + 1;
-      if (this.panes[nextPaneIndex]) {
-        if (event.clientX >= getBounds(this.panes[nextPaneIndex], this.splitPane).right - 10)
-          return;
-
-        const nextPaneSize = getBounds(this.panes[nextPaneIndex], this.splitPane);
-        const nextPaneWidth = nextPaneSize.width + (currentPaneSize.width - newWdith);
-        this.setState(state => {
-          state.panes[nextPaneIndex].size = {
-            ...nextPaneSize,
-            width: nextPaneWidth,
-          };
-
-          return state;
-        });
-      }
-
       this.setState(state => {
-        state.panes[paneDragging].size = {
-          ...currentPaneSize,
-          width: newWdith,
+        const previousPane = state.panes[paneDragging - 1];
+        const currentPane = state.panes[paneDragging];
+
+        const diff = clientX - currentPane.left;
+
+        const newPos = {
+          left: clientX,
+          width: currentPane.width - diff
         };
 
-        return state;
+        const newState = {
+          panes: {
+            ...state.panes
+          }
+        };
+
+        newState.panes[paneDragging] = {
+          ...currentPane,
+          ...newPos
+        };
+
+        if (previousPane) {
+          newState.panes[paneDragging - 1] = {
+            ...previousPane,
+            width: previousPane.width + diff
+          };
+        }
+
+        return newState;
       });
     }
   }
@@ -142,26 +144,23 @@ class Split extends Component {
     const ch = Children.map(this.props.children, (child, index) => {
       const pane = this.state.panes[index];
 
-      let style = panelStyle;
+      const style = {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        width: pane.width,
+        left: pane.left
+      };
 
-      if (pane && pane.size) {
-        style = {
-          ...style,
-          flex: 'none',
-          width: `${pane.size.width}%`,
-        };
-      }
-
-      const res = [
-        <div ref={pane => (this.panes[index] = pane)} style={style}>
-          {child}
-        </div>,
-      ];
+      const res = [<div style={style}>{child}</div>];
 
       if (index < Children.count(this.props.children) - 1)
         return res.concat(
           <span
-            style={separator}
+            style={{
+              ...separator,
+              left: pane.left + pane.width
+            }}
             onMouseDown={e => this.onMouseDown(e, index)}
             onMouseMove={e => this.onMouseMove(e, index)}
           />
